@@ -19,5 +19,3 @@ const FilePreview = ({file, removefile}) => {
 
 export default FilePreview
 
-
-//1.35
