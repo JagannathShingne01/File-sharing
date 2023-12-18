@@ -1,16 +1,20 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import UploadFrom from './_component/UploadFrom'
 import { app } from '@/firebaseConfig'
 import { getDownloadURL, getStorage, ref, uploadBytesResumable } from "firebase/storage";
 import { doc, getFirestore, setDoc } from "firebase/firestore";
 import { useUser } from '@clerk/nextjs'
 import { generateRandomString } from '@/app/_utils/RandomString';
+import { useRouter } from 'next/navigation';
 
 const Upload = () => {
 
   const {user} = useUser()
   const [progress, setProgress]=useState();
+  const [uploadCompleted,setUploadCompleted] = useState(false);
+  const [fileDocId,setFileDocId] = useState()
+  const router = useRouter()
   const storage=getStorage(app)
   const db = getFirestore(app);
   const uploadFile = (File)=>{
@@ -34,26 +38,46 @@ const Upload = () => {
   }
 
   const saveInfo= async(file, fileUrl)=>{
-    const docId=Date.now().toString();
+    const docId = generateRandomString().toString()
     await setDoc(doc(db, "uploadedFile", docId), {
       fileName: file?.name,
       fileSize: file?.size,
       fileType: file?.type,
       fileUrl: fileUrl,
       userEmail: user?.primaryEmailAddress.emailAddress,
-      userName: user?.fullName,
+      userName: user?.fullName,                       
       password:  "",
-      id: generateRandomString(),
-      shortUrl: process.env.NEXT_PUBLIC_BASE_URL+generateRandomString()
-    }).then((res)=>console.log(res))
+      id: docId,
+      shortUrl: process.env.NEXT_PUBLIC_BASE_URL+docId,
+    });
+    setFileDocId(docId)
+    
   }
 
+useEffect(()=>{
+  progress==100 && setTimeout(()=>{
+    setUploadCompleted(true);
+  },2000)
+},[progress==100])
+
+useEffect(()=>{
+  uploadCompleted&&setTimeout(()=>{
+    setUploadCompleted(false);
+    router.push('/file-preview/'+fileDocId)
+  },2000)
+},[uploadCompleted==true])
+  
   return (
     <div className='p-5 px-8 lg:px-28'>
-      <h2 className='text-3xl md:text-5xl text-center m-5 '>Start 
-      <strong className='text-primary'>Uploading</strong> File and 
-      <strong className='text-primary'>Share</strong> it</h2>
-      <UploadFrom progress={progress} uploadBtnClick={(File)=>uploadFile(File)}/>
+     
+    {!uploadCompleted 
+        ? <div>
+            <h2 className='text-3xl md:text-5xl text-center m-5 '>Start 
+            <strong className='text-primary'>Uploading</strong> File and 
+            <strong className='text-primary'>Share</strong> it</h2>  <UploadFrom progress={progress} uploadBtnClick={(File)=>uploadFile(File)}/>
+          </div>
+        : <div>Uploding....</div>  
+        }
     </div>
   )
 }
